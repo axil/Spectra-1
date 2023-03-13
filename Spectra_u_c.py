@@ -148,7 +148,8 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
 
 
     @slot(float)
-    def on_amp_valueChanged(self,x):
+
+    def on_amp_valueChanged(self,x,y):
         self.region()
 
     def listWidget_on_change(self):
