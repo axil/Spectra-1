@@ -24,7 +24,7 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
         self.pushButton_2.clicked.connect(self.plot_selected_region)
         self.pushButton_3.clicked.connect(self.get_n)
         self.chooseRange.clicked.connect(self.choose_range)
-        self.amp.valueChanged.connect(self.update_right_range)
+
         self.filename = ''
         self.dftot = pd.DataFrame()
         # self.actionExit.triggered.connect(MainWindow.close)
@@ -52,6 +52,9 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
         self.canvas_Et.sigXRangeChanged.connect(self.regionUpdated)
         self.lr.sigRegionChanged.connect(self.regionUpdated)
 
+        #self.amp.valueChanged.connect(self.regionUpdated)
+        self.lr.sigRegionChangeFinished.connect(self.fin)
+
 
 
         # Dict for curve
@@ -60,9 +63,11 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
         self.unwrap = {}
         self.phase = {}
 
-    def update_right_range(self):
+    def region(self):
         for item in [item.text() for item in self.listWidget.selectedItems()]:
             lo, hi = self.lr.getRegion()
+            self.amp.setValue(hi * 10e11)
+            print(lo,hi)
             self.selected_range[item] = [
                 self.dataframe_collection[item][(self.dataframe_collection[item]['X_Value'] <= hi) & (
                         self.dataframe_collection[item]['X_Value'] >= lo)].iloc[0].name,
@@ -70,13 +75,13 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
                         self.dataframe_collection[item]['X_Value'] >= lo)].iloc[-1].name
             ]
             l, r = self.selected_range[item]
-            #self.selected_range[item] = [l, r+1]
-            self.lr = pg.LinearRegionItem(
-                [self.dataframe_collection[item]['X_Value'][l], self.dataframe_collection[item]['X_Value'][r+1]])
-
-            #self.canvas_Et.addItem(self.lr)
 
 
+            self.lr.setRegion([self.dataframe_collection[item]['X_Value'][l], self.dataframe_collection[item]['X_Value'][r + 1]])
+
+
+    def fin(self):
+        print('g')
 
 
     def choose_range(self):
@@ -84,6 +89,7 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
             if not bool(self.selected_range):
                 self.lr = pg.LinearRegionItem(
                     [self.dataframe_collection[item]['X_Value'][0], self.dataframe_collection[item]['X_Value'][50]])
+                self.amp.setValue(self.dataframe_collection[item]['X_Value'][50] * 10e11)
 
             self.canvas_Et.addItem(self.lr)
 
@@ -91,10 +97,12 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
     def regionUpdated(self):
         pass
 
+
     def catgraph(self):
         if self.lr.getRegion():
             for item in [item.text() for item in self.listWidget.selectedItems()]:
                 lo, hi = self.lr.getRegion()
+
                 self.selected_range[item] = [
                     self.dataframe_collection[item][(self.dataframe_collection[item]['X_Value'] <= hi) & (
                                 self.dataframe_collection[item]['X_Value'] >= lo)].iloc[0].name,
@@ -102,7 +110,7 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
                             self.dataframe_collection[item]['X_Value'] >= lo)].iloc[-1].name
                 ]
 
-                print(self.selected_range)
+
 
     def plot_selected_region(self):
         self.canvas_Et.clear()
@@ -139,24 +147,11 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
                 self.curve_unwrap_phase_1 = self.canvas1_4.plot(self.unwrap_[:len(self.freq) // 2],
                                                                 pen=self.color[item], name=item)
 
-            #self.curve_unwrap_phase_1 = self.canvas1_4.plot(self.unwrap[item][lo:hi+1], pen=self.color[item], name=item)
-
-
-                #self.phase_1 = np.angle(np.fft.fft(self.dataframe_collection[item]['scan'].iloc[lo:hi].values))
-
-                #self.curve_phase_1 = self.canvas1_4.plot(self.phase_1, pen=self.color[item])
-
-                #self.unwrap_1 = np.unwrap(self.phase_1)
-                #self.curve_unwrap_phase_1 = self.canvas1_4.plot(self.unwrap_1,
-                #                                                pen=self.color[item], name=item)
+print('hi')
 
     @slot(float)
-    def on_amp_valueChanged(self, v):
-        self.canvas_Et.clear()
-        self.canvas1_3.clear()
-        self.canvas1_4.clear()
-        self.canvas1_5.clear()
-        self.Update()
+    def on_amp_valueChanged(self):
+        self.region()
 
     def listWidget_on_change(self):
         self.canvas_Et.clear()
@@ -198,13 +193,21 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
             sample = [item.text() for item in self.listWidget.selectedItems()][0]
             referense = [item.text() for item in self.listWidget.selectedItems()][1]
 
-            diff = self.dataframe_collection[sample].shape[0] - self.dataframe_collection[referense].shape[0]
-            if diff > 0:
-                a = self.dataframe_collection[sample].iloc[:-diff]
-                b = self.dataframe_collection[referense]
+            if (sample and referense) in self.selected_range:
+                lo_s, hi_s = self.selected_range[sample]
+                lo_r, hi_r = self.selected_range[referense]
+
+                a = self.dataframe_collection[sample].iloc[lo_s:hi_s+1]
+                b = self.dataframe_collection[referense].iloc[lo_r:hi_r+1]
             else:
-                a = self.dataframe_collection[sample]
-                b = self.dataframe_collection[referense].iloc[:-diff]
+
+                diff = self.dataframe_collection[sample].shape[0] - self.dataframe_collection[referense].shape[0]
+                if diff > 0:
+                    a = self.dataframe_collection[sample].iloc[:-diff]
+                    b = self.dataframe_collection[referense]
+                else:
+                    a = self.dataframe_collection[sample]
+                    b = self.dataframe_collection[referense].iloc[:-diff]
 
 
             ang_1 = np.angle(np.fft.fft(a['scan']))
