@@ -145,11 +145,10 @@ class ExampleApp(QtWidgets.QMainWindow, Design):
 
                 self.unwrap_ = np.unwrap(self.phase_)
                 self.curve_unwrap_phase_1 = self.canvas1_4.plot(self.unwrap_[:len(self.freq) // 2],
-                                                                pen=self.color[item], name=item)
 
 
     @slot(float)
-    def on_amp_valueChanged(self):
+    def on_amp_valueChanged(self,x):
         self.region()
 
     def listWidget_on_change(self):
